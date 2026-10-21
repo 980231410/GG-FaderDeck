@@ -1,5 +1,9 @@
 # GG FaderDeck
 
+基于项目https://github.com/AminoBatlog/steelseries-assist二改，增加 streamer mode 设置功能。
+
+此项目全部由 DeepSeek-V4.1-Flash 完成，本人只提供想法和提示词。
+
 Windows 托盘混音面板，为 SteelSeries GG / Sonar 提供更快的通道音量、设备绑定、EQ 与应用路由操作。
 
 > **非官方项目。** 本项目由第三方开发，与 SteelSeries 没有任何关联，未获其授权或背书。
