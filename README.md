@@ -1,6 +1,6 @@
 # GG FaderDeck
 
-基于项目"https://github.com/AminoBatlog/steelseries-assist"二改，增加 streamer mode 设置功能。
+基于项目[steelseries-assist](https://github.com/AminoBatlog/steelseries-assist)二改，增加 streamer mode 设置功能。
 
 此项目全部由 DeepSeek-V4.1-Flash 完成，本人只提供想法和提示词。
 
