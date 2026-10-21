@@ -1,0 +1,19 @@
+using FaderDeck.Domain;
+using FaderDeck.Sonar;
+
+namespace FaderDeck.Application;
+
+public sealed class SonarStateService(ISonarDiscovery discovery)
+{
+    public async Task<(SonarEndpoint Endpoint, SonarSnapshot Snapshot)> LoadAsync(
+        bool includeRoutingData = true,
+        bool includeEqPresets = true,
+        CancellationToken cancellationToken = default)
+    {
+        var endpoint = await discovery.DiscoverAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("SteelSeries Sonar is not running or could not be discovered.");
+        using var client = new SonarClient(endpoint.BaseAddress);
+        var snapshot = await client.GetSnapshotAsync(includeRoutingData, includeEqPresets, cancellationToken).ConfigureAwait(false);
+        return (endpoint, snapshot);
+    }
+}

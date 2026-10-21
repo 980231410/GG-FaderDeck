@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>FaderDeck</AssemblyName>
+    <RootNamespace>FaderDeck.App</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Product>GG FaderDeck</Product>
+    <Description>GG FaderDeck - Windows 托盘混音面板，兼容 SteelSeries GG / Sonar（非官方项目）</Description>
+    <ApplicationIcon>Assets\faderdeck.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FaderDeck.Application\FaderDeck.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Assets\faderdeck.ico" />
+    <Resource Include="Assets\faderdeck.ico" />
+  </ItemGroup>
+</Project>

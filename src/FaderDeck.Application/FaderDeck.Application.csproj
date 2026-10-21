@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FaderDeck.Domain\FaderDeck.Domain.csproj" />
+    <ProjectReference Include="..\FaderDeck.Sonar\FaderDeck.Sonar.csproj" />
+  </ItemGroup>
+</Project>
