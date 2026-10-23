@@ -264,7 +264,7 @@
                                         </Grid.RowDefinitions>
                                         <TextBox Margin="2,2,2,5" Padding="8,5" Background="#161A1F" Foreground="#DDE2FF"
                                                  BorderBrush="#465361" BorderThickness="1" CaretBrush="#DDE2FF"
-                                                 ToolTip="搜索当前通道的全部 EQ"
+                                                 ToolTip="搜索收藏的 EQ"
                                                  Text="{Binding EqSearchText, UpdateSourceTrigger=PropertyChanged}" />
                                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                                       CanContentScroll="True" PanningMode="None">

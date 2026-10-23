@@ -194,9 +194,8 @@ public partial class MainWindow : Window
                         .Select(device => new DeviceOption(device.FriendlyName, device.Id))
                         .ToArray();
                 var eqOptions = snapshot.EqPresets
-                    .Where(preset => preset.Channel == volume.Channel)
-                    .OrderByDescending(preset => preset.IsFavorite)
-                    .ThenBy(preset => preset.FavoritePosition)
+                    .Where(preset => preset.Channel == volume.Channel && preset.IsFavorite)
+                    .OrderBy(preset => preset.FavoritePosition)
                     .ThenBy(preset => preset.Name)
                     .Select(preset => new EqOption(preset.Name, preset.Id, preset.IsFavorite))
                     .ToList();
@@ -1088,11 +1087,16 @@ public partial class MainWindow : Window
         {
             var presets = await _sonarClient.GetEqPresetsAsync(channel);
             var options = presets
-                .OrderByDescending(preset => preset.IsFavorite)
-                .ThenBy(preset => preset.FavoritePosition)
+                .Where(preset => preset.IsFavorite)
+                .OrderBy(preset => preset.FavoritePosition)
                 .ThenBy(preset => preset.Name)
                 .Select(preset => new EqOption(preset.Name, preset.Id, preset.IsFavorite))
-                .ToArray();
+                .ToList();
+            // The applied preset has to stay selectable even when it is not a favourite.
+            if (row.SelectedEq is { } applied && options.All(option => option.Id != applied.Id))
+            {
+                options.Insert(0, applied);
+            }
             _isApplyingStreamerEq = true;
             try
             {
@@ -1671,11 +1675,17 @@ public partial class MainWindow : Window
             // presets added, deleted, or re-favorited in GG.
             var presets = await _sonarClient.GetEqPresetsAsync(row.Channel, forceRefresh: hadCachedOptions);
             var options = presets
-                .OrderByDescending(preset => preset.IsFavorite)
-                .ThenBy(preset => preset.FavoritePosition)
+                .Where(preset => preset.IsFavorite)
+                .OrderBy(preset => preset.FavoritePosition)
                 .ThenBy(preset => preset.Name)
                 .Select(preset => new EqOption(preset.Name, preset.Id, preset.IsFavorite))
-                .ToArray();
+                .ToList();
+            // The applied preset has to stay selectable even when it is not a favourite.
+            if (row.SelectedEq is { } applied && options.All(option => option.Id != applied.Id))
+            {
+                options.Insert(0, applied);
+            }
+
             row.UpdateEqOptions(options, row.SelectedEq?.Id);
             _loadedEqChannels.Add(row.Channel);
         }
