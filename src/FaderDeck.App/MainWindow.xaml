@@ -267,8 +267,9 @@
                                                  ToolTip="搜索当前通道的全部 EQ"
                                                  Text="{Binding EqSearchText, UpdateSourceTrigger=PropertyChanged}" />
                                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                                      ScrollChanged="EqComboBox_ScrollChanged">
-                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                                      CanContentScroll="True" PanningMode="None">
+                                            <VirtualizingStackPanel IsItemsHost="True"
+                                                                    KeyboardNavigation.DirectionalNavigation="Contained" />
                                         </ScrollViewer>
                                     </Grid>
                                 </Border>
@@ -592,6 +593,7 @@
                           SelectedItem="{Binding SelectedEq, Mode=TwoWay}"
                           Visibility="{Binding EqVisibility}"
                           DropDownOpened="StreamerEq_DropDownOpened"
+                          MouseEnter="StreamerEq_MouseEnter"
                           SelectionChanged="StreamerEq_SelectionChanged" />
             </Grid>
         </DataTemplate>
@@ -763,6 +765,7 @@
                                                           ToolTip="收藏的 EQ"
                                                           IsEnabled="{Binding HasEqOptions}"
                                                           DropDownOpened="EqComboBox_DropDownOpened"
+                                                          MouseEnter="EqComboBox_MouseEnter"
                                                           DropDownClosed="DeviceComboBox_DropDownClosed"
                                                           SelectionChanged="EqComboBox_SelectionChanged" />
                                             </StackPanel>
