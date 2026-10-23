@@ -1619,8 +1619,16 @@ public partial class MainWindow : Window
 
         await LoadEqOptionsAsync(row);
         // Replacing ItemsSource makes the ComboBox scroll the selected preset into view, which
-        // reads as the list jumping by itself.  Put the list back to the top (favourites first).
-        _ = Dispatcher.BeginInvoke(() => ScrollEqListToTop(comboBox), DispatcherPriority.Loaded);
+        // reads as the list jumping by itself.  Put the list back to the top after layout.
+        _ = Dispatcher.BeginInvoke(() => ScrollEqListToTop(comboBox), DispatcherPriority.ApplicationIdle);
+    }
+
+    private void Combo_RequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
+    {
+        // Opening a dropdown makes the ComboBox ask its parent ScrollViewer to reveal it, which
+        // scrolls the whole page by a row or two.  The control is already visible when the user
+        // clicks it, so the request is not needed.
+        e.Handled = true;
     }
 
     private void EqComboBox_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -1688,13 +1696,37 @@ public partial class MainWindow : Window
 
     private static void ScrollEqListToTop(System.Windows.Controls.ComboBox comboBox)
     {
-        if (comboBox.Template.FindName("PART_Popup", comboBox) is not Popup { Child: DependencyObject popupChild } ||
-            FindVisualDescendant<ScrollViewer>(popupChild) is not { } scrollViewer)
+        if (comboBox.Template.FindName("PART_Popup", comboBox) is not Popup { Child: DependencyObject popupChild } popup)
         {
             return;
         }
 
-        scrollViewer.ScrollToTop();
+        // WPF nudges the popup so the selected preset lines up with the closed box, which makes
+        // the list look like it started halfway down.  Undo the nudge and show the top instead.
+        popup.VerticalOffset = 0;
+        FindItemsScrollViewer(popupChild)?.ScrollToTop();
+    }
+
+    /// <summary>
+    /// Returns the ScrollViewer that actually scrolls the item list.  A plain depth-first search
+    /// is not enough: the search TextBox inside the same popup owns a ScrollViewer of its own.
+    /// </summary>
+    private static ScrollViewer? FindItemsScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer { Content: VirtualizingStackPanel or ItemsPresenter } scrollViewer)
+        {
+            return scrollViewer;
+        }
+
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            if (FindItemsScrollViewer(VisualTreeHelper.GetChild(root, index)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private static T? FindVisualDescendant<T>(DependencyObject root) where T : DependencyObject
