@@ -66,6 +66,9 @@ public partial class MainWindow : Window
     private DateTimeOffset _monitoringGuardUntil = DateTimeOffset.MinValue;
     private string _monitoringDeviceId = string.Empty;
     private string _micDeviceId = string.Empty;
+    private string _streamingDeviceId = string.Empty;
+    private string _deviceVolumeEditing = string.Empty;
+    private bool _isApplyingDeviceVolume;
     private string _currentMode = ClassicMode;
     private bool _hasStreamerData;
     private bool _isApplyingStreamerState;
@@ -1463,17 +1466,26 @@ public partial class MainWindow : Window
             {
                 _monitoringDeviceId = string.Empty;
                 _micDeviceId = string.Empty;
+                _streamingDeviceId = string.Empty;
                 MonitoringDeviceCombo.ItemsSource = null;
                 MicDeviceCombo.ItemsSource = null;
+                StreamingDeviceCombo.ItemsSource = null;
                 MonitoringDeviceCombo.IsEnabled = false;
                 MicDeviceCombo.IsEnabled = false;
+                StreamingDeviceCombo.IsEnabled = false;
+                MonitoringVolumeSlider.IsEnabled = false;
+                MicVolumeSlider.IsEnabled = false;
+                StreamingVolumeSlider.IsEnabled = false;
                 return;
             }
 
             _monitoringDeviceId = FindStreamOutput(streamer, MonitoringMix);
             _micDeviceId = FindStreamOutput(streamer, MicMix);
+            _streamingDeviceId = FindStreamOutput(streamer, StreamingMix);
             PopulateStreamDeviceCombo(MonitoringDeviceCombo, "render", _monitoringDeviceId);
+            PopulateStreamDeviceCombo(StreamingDeviceCombo, "render", _streamingDeviceId);
             PopulateStreamDeviceCombo(MicDeviceCombo, "capture", _micDeviceId);
+            RefreshAllDeviceVolumes();
         }
         finally
         {
@@ -1528,8 +1540,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var mix = ReferenceEquals(comboBox, MicDeviceCombo) ? MicMix : MonitoringMix;
-        var current = mix == MicMix ? _micDeviceId : _monitoringDeviceId;
+        var mix = MixForCombo(comboBox);
+        var current = DeviceIdForMix(mix);
         if (string.Equals(selected.Id, current, StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -1538,15 +1550,175 @@ public partial class MainWindow : Window
         await ExecuteWriteAsync(async () =>
         {
             var confirmed = await _sonarClient.SetStreamerOutputDeviceAsync(mix, selected.Id);
-            if (mix == MicMix)
+            switch (mix)
             {
-                _micDeviceId = confirmed.DeviceId;
+                case MicMix:
+                    _micDeviceId = confirmed.DeviceId;
+                    break;
+                case StreamingMix:
+                    _streamingDeviceId = confirmed.DeviceId;
+                    break;
+                default:
+                    _monitoringDeviceId = confirmed.DeviceId;
+                    break;
             }
-            else
-            {
-                _monitoringDeviceId = confirmed.DeviceId;
-            }
+
+            // 换了设备，音量条要跟着新设备的端点音量走。
+            RefreshDeviceVolume(mix);
         }, $"{StreamDeviceLabel(mix)}已切换到 {selected.Name}");
+    }
+
+    private string MixForCombo(System.Windows.Controls.ComboBox comboBox) =>
+        ReferenceEquals(comboBox, MicDeviceCombo) ? MicMix
+        : ReferenceEquals(comboBox, StreamingDeviceCombo) ? StreamingMix
+        : MonitoringMix;
+
+    private string DeviceIdForMix(string mix) => mix switch
+    {
+        MicMix => _micDeviceId,
+        StreamingMix => _streamingDeviceId,
+        _ => _monitoringDeviceId,
+    };
+
+    private void SetDeviceIdForMix(string mix, string deviceId)
+    {
+        switch (mix)
+        {
+            case MicMix:
+                _micDeviceId = deviceId;
+                break;
+            case StreamingMix:
+                _streamingDeviceId = deviceId;
+                break;
+            default:
+                _monitoringDeviceId = deviceId;
+                break;
+        }
+    }
+
+    private Slider DeviceVolumeSliderFor(string mix) => mix switch
+    {
+        MicMix => MicVolumeSlider,
+        StreamingMix => StreamingVolumeSlider,
+        _ => MonitoringVolumeSlider,
+    };
+
+    private TextBlock DeviceVolumePercentFor(string mix) => mix switch
+    {
+        MicMix => MicVolumePercent,
+        StreamingMix => StreamingVolumePercent,
+        _ => MonitoringVolumePercent,
+    };
+
+    private void RefreshAllDeviceVolumes()
+    {
+        RefreshDeviceVolume(MonitoringMix);
+        RefreshDeviceVolume(StreamingMix);
+        RefreshDeviceVolume(MicMix);
+    }
+
+    /// <summary>
+    /// 主控里每一行的音量条编辑的是该行设备的 Windows 端点音量（GG 显示的就是这个百分比），
+    /// 所以在设备变化和每次快照刷新时都要把它同步回 UI。
+    /// </summary>
+    private void RefreshDeviceVolume(string mix)
+    {
+        var slider = DeviceVolumeSliderFor(mix);
+        var label = DeviceVolumePercentFor(mix);
+        var deviceId = DeviceIdForMix(mix);
+        if (string.Equals(_deviceVolumeEditing, mix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!_endpointVolume.TryGetDeviceVolume(deviceId, out var state))
+        {
+            slider.IsEnabled = false;
+            label.Text = "--";
+            return;
+        }
+
+        var previous = _isApplyingDeviceVolume;
+        _isApplyingDeviceVolume = true;
+        try
+        {
+            slider.IsEnabled = true;
+            slider.Value = Math.Round(state.Volume * 100d);
+            label.Text = $"{slider.Value:0}%";
+        }
+        finally
+        {
+            _isApplyingDeviceVolume = previous;
+        }
+    }
+
+    private void DeviceVolumeSlider_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Slider { Tag: string mix })
+        {
+            _deviceVolumeEditing = mix;
+        }
+    }
+
+    private void DeviceVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isApplyingDeviceVolume || sender is not Slider { Tag: string mix } slider)
+        {
+            return;
+        }
+
+        var label = DeviceVolumePercentFor(mix);
+        label.Text = $"{e.NewValue:0}%";
+        if (!string.Equals(_deviceVolumeEditing, mix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        WriteDeviceVolume(mix, e.NewValue);
+    }
+
+    private void DeviceVolumeSlider_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Slider { Tag: string mix } slider)
+        {
+            _deviceVolumeEditing = string.Empty;
+            WriteDeviceVolume(mix, slider.Value);
+        }
+    }
+
+    private void DeviceVolumeSlider_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is Slider { Tag: string mix } slider)
+        {
+            _deviceVolumeEditing = string.Empty;
+            WriteDeviceVolume(mix, slider.Value);
+        }
+    }
+
+    private void DeviceVolumeSlider_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (sender is Slider { Tag: string mix } slider)
+        {
+            WriteDeviceVolume(mix, slider.Value);
+        }
+    }
+
+    private void WriteDeviceVolume(string mix, double percent)
+    {
+        var deviceId = DeviceIdForMix(mix);
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            return;
+        }
+
+        var volume = (float)Math.Clamp(percent / 100d, 0d, 1d);
+        if (!_endpointVolume.TrySetDeviceVolume(deviceId, volume, out var confirmed))
+        {
+            ActionStatusText.Text = $"{StreamDeviceLabel(mix)}音量写入失败";
+            return;
+        }
+
+        ActionStatusText.Text = $"{StreamDeviceLabel(mix)}音量 {confirmed.Volume * 100d:0}%";
     }
 
     private void StreamDevice_DropDownOpened(object sender, EventArgs e)
@@ -1559,7 +1731,12 @@ public partial class MainWindow : Window
         _isDeviceDropDownOpen = false;
     }
 
-    private static string StreamDeviceLabel(string mix) => mix == MicMix ? "麦克风输入" : "个人合成器";
+    private static string StreamDeviceLabel(string mix) => mix switch
+    {
+        MicMix => "麦克风输入",
+        StreamingMix => "流式处理合成器",
+        _ => "个人合成器",
+    };
 
     private string DeviceDisplayName(string deviceId)
     {

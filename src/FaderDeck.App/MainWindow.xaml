@@ -800,36 +800,87 @@
                     <StackPanel x:Name="StreamerPanel" Visibility="Collapsed">
                         <Border Margin="4,0,4,8" Padding="12" CornerRadius="8" Background="#232B32">
                             <StackPanel>
-                                <TextBlock Foreground="#D0D9F6" FontWeight="SemiBold" Text="设备" />
-                                <Grid Margin="0,10,0,0">
+                                <TextBlock Foreground="#D0D9F6" FontWeight="SemiBold" Text="主控" />
+
+                                <TextBlock Margin="0,10,0,0" Foreground="#8793A3" FontSize="11" Text="个人合成器" />
+                                <ComboBox x:Name="MonitoringDeviceCombo" Margin="0,4,0,0"
+                                          Height="26" FontSize="10"
+                                          Style="{StaticResource DeviceComboBoxStyle}"
+                                          RequestBringIntoView="Combo_RequestBringIntoView"
+                                          DisplayMemberPath="Name"
+                                          SelectionChanged="StreamDevice_SelectionChanged"
+                                          DropDownOpened="StreamDevice_DropDownOpened"
+                                          DropDownClosed="StreamDevice_DropDownClosed" />
+                                <Grid Margin="0,2,0,0">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="76" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="46" />
                                     </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
-                                               Foreground="#8793A3" FontSize="11" Text="个人合成器" />
-                                    <ComboBox x:Name="MonitoringDeviceCombo" Grid.Row="0" Grid.Column="1"
-                                              Height="26" FontSize="10"
-                                              Style="{StaticResource DeviceComboBoxStyle}"
-                          RequestBringIntoView="Combo_RequestBringIntoView"
-                                              DisplayMemberPath="Name"
-                                              SelectionChanged="StreamDevice_SelectionChanged"
-                                              DropDownOpened="StreamDevice_DropDownOpened"
-                                              DropDownClosed="StreamDevice_DropDownClosed" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center"
-                                               Foreground="#8793A3" FontSize="11" Text="麦克风输入" />
-                                    <ComboBox x:Name="MicDeviceCombo" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
-                                              Height="26" FontSize="10"
-                                              Style="{StaticResource DeviceComboBoxStyle}"
-                          RequestBringIntoView="Combo_RequestBringIntoView"
-                                              DisplayMemberPath="Name"
-                                              SelectionChanged="StreamDevice_SelectionChanged"
-                                              DropDownOpened="StreamDevice_DropDownOpened"
-                                              DropDownClosed="StreamDevice_DropDownClosed" />
+                                    <Slider x:Name="MonitoringVolumeSlider" Grid.Column="0" Tag="monitoring"
+                                            Style="{StaticResource VolumeSliderStyle}"
+                                            Minimum="0" Maximum="100" Value="0"
+                                            MouseDown="DeviceVolumeSlider_MouseDown"
+                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
+                                            ValueChanged="DeviceVolumeSlider_ValueChanged"
+                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                    <TextBlock x:Name="MonitoringVolumePercent" Grid.Column="1"
+                                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                                               Foreground="#D0D9F6" FontSize="11" Text="0%" />
+                                </Grid>
+
+                                <TextBlock Margin="0,8,0,0" Foreground="#8793A3" FontSize="11" Text="流式处理合成器" />
+                                <ComboBox x:Name="StreamingDeviceCombo" Margin="0,4,0,0"
+                                          Height="26" FontSize="10"
+                                          Style="{StaticResource DeviceComboBoxStyle}"
+                                          RequestBringIntoView="Combo_RequestBringIntoView"
+                                          DisplayMemberPath="Name"
+                                          SelectionChanged="StreamDevice_SelectionChanged"
+                                          DropDownOpened="StreamDevice_DropDownOpened"
+                                          DropDownClosed="StreamDevice_DropDownClosed" />
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="46" />
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="StreamingVolumeSlider" Grid.Column="0" Tag="streaming"
+                                            Style="{StaticResource VolumeSliderStyle}"
+                                            Minimum="0" Maximum="100" Value="0"
+                                            MouseDown="DeviceVolumeSlider_MouseDown"
+                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
+                                            ValueChanged="DeviceVolumeSlider_ValueChanged"
+                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                    <TextBlock x:Name="StreamingVolumePercent" Grid.Column="1"
+                                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                                               Foreground="#D0D9F6" FontSize="11" Text="0%" />
+                                </Grid>
+
+                                <TextBlock Margin="0,8,0,0" Foreground="#8793A3" FontSize="11" Text="麦克风输入" />
+                                <ComboBox x:Name="MicDeviceCombo" Margin="0,4,0,0"
+                                          Height="26" FontSize="10"
+                                          Style="{StaticResource DeviceComboBoxStyle}"
+                                          RequestBringIntoView="Combo_RequestBringIntoView"
+                                          DisplayMemberPath="Name"
+                                          SelectionChanged="StreamDevice_SelectionChanged"
+                                          DropDownOpened="StreamDevice_DropDownOpened"
+                                          DropDownClosed="StreamDevice_DropDownClosed" />
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="46" />
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="MicVolumeSlider" Grid.Column="0" Tag="mic"
+                                            Style="{StaticResource VolumeSliderStyle}"
+                                            Minimum="0" Maximum="100" Value="0"
+                                            MouseDown="DeviceVolumeSlider_MouseDown"
+                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
+                                            ValueChanged="DeviceVolumeSlider_ValueChanged"
+                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                    <TextBlock x:Name="MicVolumePercent" Grid.Column="1"
+                                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                                               Foreground="#D0D9F6" FontSize="11" Text="0%" />
                                 </Grid>
                             </StackPanel>
                         </Border>

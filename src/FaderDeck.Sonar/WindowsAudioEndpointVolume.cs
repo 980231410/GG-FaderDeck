@@ -78,6 +78,68 @@ public sealed class WindowsAudioEndpointVolume
             device.DataFlow == dataFlow)?.Id;
     }
 
+    /// <summary>
+    /// Reads the Windows volume of one endpoint by device id. The streamer main-control rows edit
+    /// the device's own endpoint volume, which is the percentage SteelSeries GG shows next to
+    /// 个人合成器 / 流式处理合成器 / 麦克风输入.
+    /// </summary>
+    public bool TryGetDeviceVolume(string deviceId, out VolumeState state)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            state = default!;
+            return false;
+        }
+
+        try
+        {
+            state = UseEndpoint(deviceId, endpoint =>
+            {
+                Marshal.ThrowExceptionForHR(endpoint.GetMasterVolumeLevelScalar(out var volume));
+                Marshal.ThrowExceptionForHR(endpoint.GetMute(out var muted));
+                return new VolumeState(volume, muted);
+            });
+            return true;
+        }
+        catch (Exception exception) when (exception is COMException or InvalidCastException or ArgumentException)
+        {
+            state = default!;
+            return false;
+        }
+    }
+
+    public bool TrySetDeviceVolume(string deviceId, float volume, out VolumeState state)
+    {
+        if (volume is < 0 or > 1 || float.IsNaN(volume))
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume));
+        }
+
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            state = default!;
+            return false;
+        }
+
+        try
+        {
+            state = UseEndpoint(deviceId, endpoint =>
+            {
+                Marshal.ThrowExceptionForHR(endpoint.SetMasterVolumeLevelScalar(volume, Guid.Empty));
+                Marshal.ThrowExceptionForHR(endpoint.SetMute(volume <= 0f, Guid.Empty));
+                Marshal.ThrowExceptionForHR(endpoint.GetMasterVolumeLevelScalar(out var confirmed));
+                Marshal.ThrowExceptionForHR(endpoint.GetMute(out var muted));
+                return new VolumeState(confirmed, muted);
+            });
+            return true;
+        }
+        catch (Exception exception) when (exception is COMException or InvalidCastException or ArgumentException)
+        {
+            state = default!;
+            return false;
+        }
+    }
+
     private bool TryGetEndpoint(string channel, out string endpointId)
     {
         lock (_sync)
