@@ -69,6 +69,9 @@ public partial class MainWindow : Window
     private string _streamingDeviceId = string.Empty;
     private string _deviceVolumeEditing = string.Empty;
     private bool _isApplyingDeviceVolume;
+    private readonly System.Collections.ObjectModel.ObservableCollection<DeviceOutRow> _deviceOutRows = [];
+    private string _deviceOutEditing = string.Empty;
+
     private string _currentMode = ClassicMode;
     private bool _hasStreamerData;
     private bool _isApplyingStreamerState;
@@ -125,6 +128,9 @@ public partial class MainWindow : Window
             }
         };
         _volumeFallbackTimer.Start();
+
+        ClassicHardwareList.ItemsSource = _deviceOutRows;
+        StreamerHardwareList.ItemsSource = _deviceOutRows;
     }
 
     /// <summary>Shows a short message in the footer, used by tray commands.</summary>
@@ -222,6 +228,7 @@ public partial class MainWindow : Window
             }).ToArray();
             ApplyChannelRows(nextRows, snapshot.EqPresets.Count > 0);
             ApplyStreamerState(snapshot.Streamer, snapshot.SelectedEqPresets);
+            ApplyDeviceOut(snapshot.Streamer?.DeviceOut ?? []);
 
             if (includeRoutingData)
             {
@@ -1366,6 +1373,63 @@ public partial class MainWindow : Window
         ApplyStreamDevices(streamer);
     }
 
+    private void ApplyDeviceOut(IReadOnlyList<DeviceOutFeature> features)
+    {
+        var visible = features.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClassicHardwareCard.Visibility = visible;
+        StreamerHardwareCard.Visibility = visible;
+
+        if (features.Count == 0)
+        {
+            _deviceOutRows.Clear();
+            return;
+        }
+
+        var rows = features
+            .Select(feature => (
+                feature.Feature,
+                Label: DeviceOutLabel(feature.Feature),
+                Percent: (int)Math.Round(feature.State.Volume * 100),
+                Muted: feature.State.Muted))
+            .ToArray();
+
+        var topologyChanged = _deviceOutRows.Count != rows.Length ||
+                              rows.Any(row => _deviceOutRows.All(existing =>
+                                  !string.Equals(existing.Feature, row.Feature, StringComparison.Ordinal)));
+        if (topologyChanged)
+        {
+            _deviceOutRows.Clear();
+            foreach (var row in rows)
+            {
+                _deviceOutRows.Add(new DeviceOutRow(row.Feature, row.Label, row.Percent, row.Muted));
+            }
+
+            return;
+        }
+
+        foreach (var row in rows)
+        {
+            var existing = _deviceOutRows.First(item =>
+                string.Equals(item.Feature, row.Feature, StringComparison.Ordinal));
+            if (string.Equals(_deviceOutEditing, row.Feature, StringComparison.Ordinal))
+            {
+                // The user is dragging this row: do not let a snapshot taken before the write
+                // snap the fader back under the thumb.
+                existing.ApplyExternalState(row.Percent, row.Muted, updateDisplayedVolume: false);
+                continue;
+            }
+
+            existing.ApplyExternalState(row.Percent, row.Muted, updateDisplayedVolume: true);
+        }
+    }
+
+    private static string DeviceOutLabel(string feature) => feature switch
+    {
+        "HeadphoneOut" => "耳机输出",
+        "LineOut" => "线路输出",
+        _ => feature,
+    };
+
     private void ApplyStreamerVolumes(StreamerSnapshot? streamer)
     {
         if (streamer is null)
@@ -1717,6 +1781,120 @@ public partial class MainWindow : Window
         {
             CompleteDeviceVolumeInteraction(slider, mix);
         }
+    }
+
+    private void DeviceOutSlider_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider { DataContext: DeviceOutRow row } slider)
+        {
+            return;
+        }
+
+        _deviceOutEditing = row.Feature;
+        BeginTrackDrag(slider, e, () => CompleteDeviceOutInteraction(slider, row));
+    }
+
+    private void DeviceOutSlider_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Slider { DataContext: DeviceOutRow row } slider)
+        {
+            Dispatcher.BeginInvoke(
+                () => CompleteDeviceOutInteraction(slider, row),
+                DispatcherPriority.Input);
+        }
+    }
+
+    private void DeviceOutSlider_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is not Slider { DataContext: DeviceOutRow row } slider)
+        {
+            return;
+        }
+
+        if (_trackDrag?.Slider == slider)
+        {
+            return;
+        }
+
+        _deviceOutEditing = string.Empty;
+        WriteDeviceOutVolume(row, slider.Value);
+    }
+
+    private void DeviceOutSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (sender is not Slider { DataContext: DeviceOutRow row } slider)
+        {
+            return;
+        }
+
+        if (!string.Equals(_deviceOutEditing, row.Feature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        WriteDeviceOutVolume(row, e.NewValue);
+    }
+
+    private void DeviceOutSlider_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (sender is Slider { DataContext: DeviceOutRow row } slider)
+        {
+            CompleteDeviceOutInteraction(slider, row);
+        }
+    }
+
+    private void CompleteDeviceOutInteraction(Slider slider, DeviceOutRow row)
+    {
+        _deviceOutEditing = string.Empty;
+        WriteDeviceOutVolume(row, slider.Value);
+    }
+
+    private void WriteDeviceOutVolume(DeviceOutRow row, double percent)
+    {
+        var client = _sonarClient;
+        if (client is null)
+        {
+            return;
+        }
+
+        var volume = (float)Math.Clamp(percent / 100d, 0d, 1d);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var confirmed = await client.SetDeviceOutVolumeAsync(row.Feature, volume, CancellationToken.None);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    row.ApplyExternalState(
+                        (int)Math.Round(confirmed.State.Volume * 100),
+                        confirmed.State.Muted,
+                        updateDisplayedVolume: true);
+                    ActionStatusText.Text = $"{row.Label}音量 {(int)Math.Round(confirmed.State.Volume * 100)}%";
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => ActionStatusText.Text = $"{row.Label}音量写入失败：{ex.Message}");
+            }
+        });
+    }
+
+    private async void DeviceOutMute_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { DataContext: DeviceOutRow row } || _sonarClient is null)
+        {
+            return;
+        }
+
+        var target = !row.Muted;
+        await ExecuteWriteAsync(async () =>
+        {
+            var confirmed = await _sonarClient.SetDeviceOutMutedAsync(row.Feature, target, CancellationToken.None);
+            row.ApplyExternalState(
+                (int)Math.Round(confirmed.State.Volume * 100),
+                confirmed.State.Muted,
+                updateDisplayedVolume: true);
+        }, target ? $"已静音{row.Label}" : $"已取消{row.Label}静音");
     }
 
     private void WriteDeviceVolume(string mix, double percent)
@@ -2148,6 +2326,87 @@ public partial class MainWindow : Window
         {
             _isWriting = false;
         }
+    }
+
+    private sealed class DeviceOutRow : INotifyPropertyChanged
+    {
+        private int _percent;
+        private bool _muted;
+        private int _lastNonZeroPercent;
+
+        public DeviceOutRow(string feature, string label, int percent, bool muted)
+        {
+            Feature = feature;
+            Label = label;
+            _lastNonZeroPercent = percent > 0 ? percent : 50;
+            _percent = Math.Clamp(percent, 0, 100);
+            _muted = muted;
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public string Feature { get; }
+
+        public string Label { get; }
+
+        public int Percent
+        {
+            get => _percent;
+            set
+            {
+                var clamped = Math.Clamp(value, 0, 100);
+                if (_percent == clamped)
+                {
+                    return;
+                }
+
+                _percent = clamped;
+                if (_percent > 0)
+                {
+                    _lastNonZeroPercent = _percent;
+                }
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(PercentLabel));
+            }
+        }
+
+        public bool Muted
+        {
+            get => _muted;
+            set
+            {
+                if (_muted == value)
+                {
+                    return;
+                }
+
+                _muted = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(MuteToolTip));
+            }
+        }
+
+        public string PercentLabel => $"{Percent}%";
+
+        public string MuteToolTip => Muted ? "取消静音" : "静音";
+
+        public void ApplyExternalState(int percent, bool muted, bool updateDisplayedVolume)
+        {
+            if (updateDisplayedVolume)
+            {
+                Percent = percent;
+            }
+            else if (percent > 0)
+            {
+                _lastNonZeroPercent = percent;
+            }
+
+            Muted = muted;
+        }
+
+        private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
     private sealed class ChannelRow : INotifyPropertyChanged

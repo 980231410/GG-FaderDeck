@@ -599,6 +599,32 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="HardwareOutputRowTemplate">
+            <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="66" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="40" />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Foreground="#8793A3" FontSize="11"
+                           TextTrimming="CharacterEllipsis" Text="{Binding Label}" />
+                <Slider Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center"
+                        Style="{StaticResource VolumeSliderStyle}"
+                        Minimum="0" Maximum="100" Value="{Binding Percent, Mode=OneWay}"
+                        PreviewMouseLeftButtonDown="DeviceOutSlider_MouseDown"
+                        ValueChanged="DeviceOutSlider_ValueChanged"
+                        PreviewMouseLeftButtonUp="DeviceOutSlider_MouseUp"
+                        LostMouseCapture="DeviceOutSlider_LostMouseCapture"
+                        PreviewKeyUp="DeviceOutSlider_KeyUp" />
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Foreground="#D0D9F6" FontSize="11" Text="{Binding PercentLabel}" />
+                <Button Grid.Column="3" HorizontalAlignment="Right" Style="{StaticResource MuteButtonStyle}"
+                        Click="DeviceOutMute_Click"
+                        AutomationProperties.Name="{Binding MuteToolTip}" />
+            </Grid>
+        </DataTemplate>
+
         <Style x:Key="MainTabItemStyle" TargetType="TabItem">
             <Setter Property="Foreground" Value="#7F8A9A" />
             <Setter Property="Background" Value="Transparent" />
@@ -721,7 +747,7 @@
                 <ScrollViewer Margin="0,10,0,0" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                     <Grid>
-                    <DockPanel x:Name="ClassicPanel">
+                    <StackPanel x:Name="ClassicPanel">
                         <ItemsControl x:Name="ChannelList" HorizontalContentAlignment="Stretch">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -795,14 +821,44 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </DockPanel>
+
+                        <Border x:Name="ClassicHardwareCard" Margin="4,0,4,8" Padding="12"
+                                CornerRadius="8" Background="#232B32" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Foreground="#D0D9F6" FontWeight="SemiBold" Text="硬件输出" />
+                                <ItemsControl x:Name="ClassicHardwareList" Margin="0,8,0,0"
+                                              HorizontalContentAlignment="Stretch"
+                                              ItemTemplate="{StaticResource HardwareOutputRowTemplate}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
                     <StackPanel x:Name="StreamerPanel" Visibility="Collapsed">
                         <Border Margin="4,0,4,8" Padding="12" CornerRadius="8" Background="#232B32">
                             <StackPanel>
                                 <TextBlock Foreground="#D0D9F6" FontWeight="SemiBold" Text="主控" />
 
-                                <TextBlock Margin="0,10,0,0" Foreground="#8793A3" FontSize="11" Text="个人合成器" />
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="40" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="#8793A3" FontSize="11" Text="个人合成器" />
+                                    <Slider x:Name="MonitoringVolumeSlider" Grid.Column="1" Tag="monitoring"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource VolumeSliderStyle}"
+                                            Minimum="0" Maximum="100" Value="0"
+                                            PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
+                                            PreviewMouseLeftButtonUp="DeviceVolumeSlider_MouseUp"
+                                            LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
+                                            ValueChanged="DeviceVolumeSlider_ValueChanged"
+                                            PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
+                                    <TextBlock x:Name="MonitoringVolumePercent" Grid.Column="2"
+                                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                                               Foreground="#D0D9F6" FontSize="11" Text="0%" />
+                                </Grid>
                                 <ComboBox x:Name="MonitoringDeviceCombo" Margin="0,4,0,0"
                                           Height="26" FontSize="10"
                                           Style="{StaticResource DeviceComboBoxStyle}"
@@ -811,12 +867,17 @@
                                           SelectionChanged="StreamDevice_SelectionChanged"
                                           DropDownOpened="StreamDevice_DropDownOpened"
                                           DropDownClosed="StreamDevice_DropDownClosed" />
-                                <Grid Margin="0,2,0,0">
+
+                                <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="46" />
+                                        <ColumnDefinition Width="40" />
                                     </Grid.ColumnDefinitions>
-                                    <Slider x:Name="MonitoringVolumeSlider" Grid.Column="0" Tag="monitoring"
+                                    <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="#8793A3" FontSize="11" Text="流式处理合成器" />
+                                    <Slider x:Name="StreamingVolumeSlider" Grid.Column="1" Tag="streaming"
+                                            VerticalAlignment="Center"
                                             Style="{StaticResource VolumeSliderStyle}"
                                             Minimum="0" Maximum="100" Value="0"
                                             PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
@@ -824,12 +885,10 @@
                                             LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
                                             ValueChanged="DeviceVolumeSlider_ValueChanged"
                                             PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
-                                    <TextBlock x:Name="MonitoringVolumePercent" Grid.Column="1"
+                                    <TextBlock x:Name="StreamingVolumePercent" Grid.Column="2"
                                                VerticalAlignment="Center" HorizontalAlignment="Right"
                                                Foreground="#D0D9F6" FontSize="11" Text="0%" />
                                 </Grid>
-
-                                <TextBlock Margin="0,8,0,0" Foreground="#8793A3" FontSize="11" Text="流式处理合成器" />
                                 <ComboBox x:Name="StreamingDeviceCombo" Margin="0,4,0,0"
                                           Height="26" FontSize="10"
                                           Style="{StaticResource DeviceComboBoxStyle}"
@@ -838,12 +897,17 @@
                                           SelectionChanged="StreamDevice_SelectionChanged"
                                           DropDownOpened="StreamDevice_DropDownOpened"
                                           DropDownClosed="StreamDevice_DropDownClosed" />
-                                <Grid Margin="0,2,0,0">
+
+                                <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="46" />
+                                        <ColumnDefinition Width="40" />
                                     </Grid.ColumnDefinitions>
-                                    <Slider x:Name="StreamingVolumeSlider" Grid.Column="0" Tag="streaming"
+                                    <TextBlock VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="#8793A3" FontSize="11" Text="麦克风输入" />
+                                    <Slider x:Name="MicVolumeSlider" Grid.Column="1" Tag="mic"
+                                            VerticalAlignment="Center"
                                             Style="{StaticResource VolumeSliderStyle}"
                                             Minimum="0" Maximum="100" Value="0"
                                             PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
@@ -851,12 +915,10 @@
                                             LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
                                             ValueChanged="DeviceVolumeSlider_ValueChanged"
                                             PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
-                                    <TextBlock x:Name="StreamingVolumePercent" Grid.Column="1"
+                                    <TextBlock x:Name="MicVolumePercent" Grid.Column="2"
                                                VerticalAlignment="Center" HorizontalAlignment="Right"
                                                Foreground="#D0D9F6" FontSize="11" Text="0%" />
                                 </Grid>
-
-                                <TextBlock Margin="0,8,0,0" Foreground="#8793A3" FontSize="11" Text="麦克风输入" />
                                 <ComboBox x:Name="MicDeviceCombo" Margin="0,4,0,0"
                                           Height="26" FontSize="10"
                                           Style="{StaticResource DeviceComboBoxStyle}"
@@ -865,23 +927,6 @@
                                           SelectionChanged="StreamDevice_SelectionChanged"
                                           DropDownOpened="StreamDevice_DropDownOpened"
                                           DropDownClosed="StreamDevice_DropDownClosed" />
-                                <Grid Margin="0,2,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="46" />
-                                    </Grid.ColumnDefinitions>
-                                    <Slider x:Name="MicVolumeSlider" Grid.Column="0" Tag="mic"
-                                            Style="{StaticResource VolumeSliderStyle}"
-                                            Minimum="0" Maximum="100" Value="0"
-                                            PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
-                                            PreviewMouseLeftButtonUp="DeviceVolumeSlider_MouseUp"
-                                            LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
-                                            ValueChanged="DeviceVolumeSlider_ValueChanged"
-                                            PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
-                                    <TextBlock x:Name="MicVolumePercent" Grid.Column="1"
-                                               VerticalAlignment="Center" HorizontalAlignment="Right"
-                                               Foreground="#D0D9F6" FontSize="11" Text="0%" />
-                                </Grid>
                             </StackPanel>
                         </Border>
 
@@ -927,6 +972,16 @@
                                 <TextBlock x:Name="StreamerEmptyText" Margin="0,6,0,0" Foreground="#61697A"
                                            FontSize="10" TextWrapping="Wrap" Visibility="Collapsed"
                                            Text="当前 Sonar 未提供主播混音数据。" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="StreamerHardwareCard" Margin="4,0,4,8" Padding="12" CornerRadius="8"
+                                Background="#232B32" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Foreground="#D0D9F6" FontWeight="SemiBold" Text="硬件输出" />
+                                <ItemsControl x:Name="StreamerHardwareList" Margin="0,8,0,0"
+                                              HorizontalContentAlignment="Stretch"
+                                              ItemTemplate="{StaticResource HardwareOutputRowTemplate}" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
