@@ -819,11 +819,11 @@
                                     <Slider x:Name="MonitoringVolumeSlider" Grid.Column="0" Tag="monitoring"
                                             Style="{StaticResource VolumeSliderStyle}"
                                             Minimum="0" Maximum="100" Value="0"
-                                            MouseDown="DeviceVolumeSlider_MouseDown"
-                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
+                                            PreviewMouseLeftButtonUp="DeviceVolumeSlider_MouseUp"
                                             LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
                                             ValueChanged="DeviceVolumeSlider_ValueChanged"
-                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                            PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
                                     <TextBlock x:Name="MonitoringVolumePercent" Grid.Column="1"
                                                VerticalAlignment="Center" HorizontalAlignment="Right"
                                                Foreground="#D0D9F6" FontSize="11" Text="0%" />
@@ -846,11 +846,11 @@
                                     <Slider x:Name="StreamingVolumeSlider" Grid.Column="0" Tag="streaming"
                                             Style="{StaticResource VolumeSliderStyle}"
                                             Minimum="0" Maximum="100" Value="0"
-                                            MouseDown="DeviceVolumeSlider_MouseDown"
-                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
+                                            PreviewMouseLeftButtonUp="DeviceVolumeSlider_MouseUp"
                                             LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
                                             ValueChanged="DeviceVolumeSlider_ValueChanged"
-                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                            PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
                                     <TextBlock x:Name="StreamingVolumePercent" Grid.Column="1"
                                                VerticalAlignment="Center" HorizontalAlignment="Right"
                                                Foreground="#D0D9F6" FontSize="11" Text="0%" />
@@ -873,11 +873,11 @@
                                     <Slider x:Name="MicVolumeSlider" Grid.Column="0" Tag="mic"
                                             Style="{StaticResource VolumeSliderStyle}"
                                             Minimum="0" Maximum="100" Value="0"
-                                            MouseDown="DeviceVolumeSlider_MouseDown"
-                                            MouseUp="DeviceVolumeSlider_MouseUp"
+                                            PreviewMouseLeftButtonDown="DeviceVolumeSlider_MouseDown"
+                                            PreviewMouseLeftButtonUp="DeviceVolumeSlider_MouseUp"
                                             LostMouseCapture="DeviceVolumeSlider_LostMouseCapture"
                                             ValueChanged="DeviceVolumeSlider_ValueChanged"
-                                            KeyUp="DeviceVolumeSlider_KeyUp" />
+                                            PreviewKeyUp="DeviceVolumeSlider_KeyUp" />
                                     <TextBlock x:Name="MicVolumePercent" Grid.Column="1"
                                                VerticalAlignment="Center" HorizontalAlignment="Right"
                                                Foreground="#D0D9F6" FontSize="11" Text="0%" />

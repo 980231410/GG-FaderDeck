@@ -1654,10 +1654,20 @@ public partial class MainWindow : Window
 
     private void DeviceVolumeSlider_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Slider { Tag: string mix })
+        if (sender is not Slider { Tag: string mix } slider)
         {
-            _deviceVolumeEditing = mix;
+            return;
         }
+
+        _deviceVolumeEditing = mix;
+        // 点轨道任意位置直接跳过去（和经典/主播音量条同一套拖动逻辑），而不是只按步长挪。
+        BeginTrackDrag(slider, e, () => CompleteDeviceVolumeInteraction(slider, mix));
+    }
+
+    private void CompleteDeviceVolumeInteraction(Slider slider, string mix)
+    {
+        _deviceVolumeEditing = string.Empty;
+        WriteDeviceVolume(mix, slider.Value);
     }
 
     private void DeviceVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1681,8 +1691,9 @@ public partial class MainWindow : Window
     {
         if (sender is Slider { Tag: string mix } slider)
         {
-            _deviceVolumeEditing = string.Empty;
-            WriteDeviceVolume(mix, slider.Value);
+            Dispatcher.BeginInvoke(
+                () => CompleteDeviceVolumeInteraction(slider, mix),
+                DispatcherPriority.Input);
         }
     }
 
@@ -1690,6 +1701,11 @@ public partial class MainWindow : Window
     {
         if (sender is Slider { Tag: string mix } slider)
         {
+            if (_trackDrag?.Slider == slider)
+            {
+                return;
+            }
+
             _deviceVolumeEditing = string.Empty;
             WriteDeviceVolume(mix, slider.Value);
         }
@@ -1699,7 +1715,7 @@ public partial class MainWindow : Window
     {
         if (sender is Slider { Tag: string mix } slider)
         {
-            WriteDeviceVolume(mix, slider.Value);
+            CompleteDeviceVolumeInteraction(slider, mix);
         }
     }
 
