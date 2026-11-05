@@ -2371,6 +2371,8 @@ public partial class MainWindow : Window
     private void CaptionPin_Click(object sender, RoutedEventArgs e)
     {
         Topmost = !Topmost;
+        // 置顶时不再因为失焦自动收起，否则切到别的窗口面板就没了。
+        HideOnDeactivate = !Topmost;
         CaptionPinIcon.Fill = Topmost
             ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8F, 0x9B, 0xFF))
             : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8B, 0x96, 0xA8));

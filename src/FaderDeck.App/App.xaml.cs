@@ -45,7 +45,8 @@ public partial class App : System.Windows.Application
         _trayIcon = new Forms.NotifyIcon
         {
             Icon = _applicationIcon,
-            Text = "GG FaderDeck",
+            // 悬停提示交给自绘的音量浮窗；这里留空，避免再弹出应用名的系统提示框。
+            Text = string.Empty,
             Visible = true,
             ContextMenuStrip = menu
         };
