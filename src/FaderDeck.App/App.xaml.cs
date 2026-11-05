@@ -35,10 +35,24 @@ public partial class App : System.Windows.Application
         _mainWindow.HideOnDeactivate = !isSmokeTest;
         MainWindow = _mainWindow;
 
-        var menu = new Forms.ContextMenuStrip();
+        var menu = new Forms.ContextMenuStrip
+        {
+            Renderer = new TrayMenuRenderer(),
+            BackColor = TrayMenuRenderer.Background,
+            ForeColor = TrayMenuRenderer.Text,
+            ShowImageMargin = false,
+            DropShadowEnabled = false,
+            Font = new Font("Microsoft YaHei UI", 9F),
+            Padding = new Forms.Padding(4, 4, 4, 4),
+            MinimumSize = new System.Drawing.Size(0, 0),
+        };
         menu.Items.Add("打开 SteelSeries GG", null, (_, _) => OpenSteelSeriesGg());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitApplication());
+        foreach (Forms.ToolStripItem item in menu.Items)
+        {
+            item.Padding = new Forms.Padding(8, 5, 10, 5);
+        }
 
         _applicationIcon = TrayIconFactory.Create();
         _trayIcon = new Forms.NotifyIcon
@@ -165,33 +179,43 @@ public partial class App : System.Windows.Application
         _hoverUntil = DateTime.MinValue;
     }
 
+    /// <summary>
+    /// 把 GG 界面叫出来。GG 常驻在托盘时，直接启动 SteelSeriesGG.exe 只会让新实例秒退（单实例），
+    /// 界面上什么都不会发生；真正会把主窗口叫出来的是托盘宿主 SteelSeriesGGEZ.exe。
+    /// </summary>
     private static void OpenSteelSeriesGg()
     {
-        var candidates = new[]
+        var directories = new[]
         {
-            @"C:\Program Files\SteelSeries\GG\SteelSeriesGG.exe",
-            @"C:\Program Files (x86)\SteelSeries\GG\SteelSeriesGG.exe",
+            @"C:\Program Files\SteelSeries\GG",
+            @"C:\Program Files (x86)\SteelSeries\GG",
         };
 
-        foreach (var path in candidates)
-        {
-            if (!System.IO.File.Exists(path))
-            {
-                continue;
-            }
+        var launchers = new[] { "SteelSeriesGGEZ.exe", "SteelSeriesGG.exe" };
 
-            try
+        foreach (var directory in directories)
+        {
+            foreach (var launcher in launchers)
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path)
+                var path = System.IO.Path.Combine(directory, launcher);
+                if (!System.IO.File.Exists(path))
                 {
-                    UseShellExecute = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(path)!,
-                });
-                return;
-            }
-            catch
-            {
-                // 打不开就静默放弃，菜单项不应该把程序带崩。
+                    continue;
+                }
+
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path)
+                    {
+                        UseShellExecute = true,
+                        WorkingDirectory = directory,
+                    });
+                    return;
+                }
+                catch
+                {
+                    // 打不开就换下一个候选；菜单项不应该把程序带崩。
+                }
             }
         }
     }
