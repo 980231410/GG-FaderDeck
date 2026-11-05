@@ -11,7 +11,6 @@ public partial class App : System.Windows.Application
     private Icon? _applicationIcon;
     private MainWindow? _mainWindow;
     private Mutex? _singleInstanceMutex;
-    private TrayVolumeFlyout? _flyout;
     private TrayWheelWatcher? _wheelWatcher;
     private DispatcherTimer? _hoverTimer;
     private DateTime _hoverUntil = DateTime.MinValue;
@@ -45,8 +44,8 @@ public partial class App : System.Windows.Application
         _trayIcon = new Forms.NotifyIcon
         {
             Icon = _applicationIcon,
-            // 悬停提示交给自绘的音量浮窗；这里留空，避免再弹出应用名的系统提示框。
-            Text = string.Empty,
+            // 悬停时的系统提示框直接显示音量；内容由 UpdateTrayText 实时刷新。
+            Text = "GG FaderDeck",
             Visible = true,
             ContextMenuStrip = menu
         };
@@ -58,7 +57,6 @@ public partial class App : System.Windows.Application
             }
         };
 
-        _flyout = new TrayVolumeFlyout();
         _trayIcon.MouseMove += (_, _) => OnTrayHover();
 
         _wheelWatcher = new TrayWheelWatcher(
@@ -70,7 +68,7 @@ public partial class App : System.Windows.Application
         {
             if (DateTime.UtcNow >= _hoverUntil)
             {
-                HideFlyout();
+                ResetHoverState();
             }
         };
         _hoverTimer.Start();
@@ -103,12 +101,6 @@ public partial class App : System.Windows.Application
         _wheelWatcher?.Dispose();
         _hoverTimer?.Stop();
 
-        if (_flyout is not null)
-        {
-            _flyout.AllowClose();
-            _flyout.Close();
-        }
-
         _applicationIcon?.Dispose();
 
         _singleInstanceMutex?.Dispose();
@@ -118,20 +110,19 @@ public partial class App : System.Windows.Application
 
     private void OnTrayHover()
     {
-        if (_mainWindow is null || _flyout is null)
+        if (_mainWindow is null)
         {
             return;
         }
 
         _hoverUntil = DateTime.UtcNow.AddMilliseconds(1200);
         var (name, percent) = _mainWindow.GetPersonalOutputState();
-        _flyout.Update(name, percent);
-        _flyout.ShowNearCursor();
+        UpdateTrayText(name, percent);
     }
 
     private void OnTrayWheel(int wheelDelta)
     {
-        if (_mainWindow is null || _flyout is null || DateTime.UtcNow >= _hoverUntil)
+        if (_mainWindow is null || DateTime.UtcNow >= _hoverUntil)
         {
             return;
         }
@@ -139,15 +130,39 @@ public partial class App : System.Windows.Application
         var step = wheelDelta > 0 ? 2 : -2;
         var percent = _mainWindow.NudgePersonalOutput(step);
         var (name, _) = _mainWindow.GetPersonalOutputState();
-        _flyout.Update(name, percent);
+        UpdateTrayText(name, percent);
         _hoverUntil = DateTime.UtcNow.AddMilliseconds(1200);
-        _flyout.ShowNearCursor();
     }
 
-    private void HideFlyout()
+    /// <summary>
+    /// 系统托盘提示框最多 63 个字符，超长会被 WinForms 直接拒掉，所以这里先截断再写入。
+    /// </summary>
+    private void UpdateTrayText(string name, int percent)
+    {
+        if (_trayIcon is null)
+        {
+            return;
+        }
+
+        var text = $"{name}：{percent}%";
+        if (text.Length > 63)
+        {
+            text = text[..60] + "...";
+        }
+
+        try
+        {
+            _trayIcon.Text = text;
+        }
+        catch (ArgumentException)
+        {
+            // 极端情况下（名字里有非法字符）保持上一次的提示文本。
+        }
+    }
+
+    private void ResetHoverState()
     {
         _hoverUntil = DateTime.MinValue;
-        _flyout?.Hide();
     }
 
     private static void OpenSteelSeriesGg()
