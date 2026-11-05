@@ -15,7 +15,8 @@ var tests = new List<(string Name, Func<Task> Run)>
     ("Sonar event client ignores unrelated events", EventClientIgnoresUnrelatedEvent),
     ("Virtual endpoint mapping selects the correct data flow", VirtualEndpointMappingSelectsDataFlow),
     ("Slider track clicks map to absolute volume", SliderTrackClicksMapToVolume),
-    ("Volume writes collapse intermediate values", VolumeWritesCollapseIntermediateValues)
+    ("Volume writes collapse intermediate values", VolumeWritesCollapseIntermediateValues),
+    ("Routing composer separates unrouted applications", RoutingComposerSeparatesUnrouted)
 };
 
 var failures = 0;
@@ -207,6 +208,29 @@ static async Task AssertThrowsAsync<T>(Func<Task> action) where T : Exception
     }
 
     throw new InvalidOperationException($"Expected exception {typeof(T).Name} was not thrown.");
+}
+
+static Task RoutingComposerSeparatesUnrouted()
+{
+    static AudioSession Session(int pid, string name, string state = "active", bool system = false) =>
+        new($"{pid}-{name}", name, pid, name, state, system, false);
+
+    var unrouted = RoutingComposer.CollectUnrouted(new List<DeviceSessions>
+    {
+        new("game", "game", "render", [Session(11, "Counter-Strike 2")]),
+        new("chat", "chatRender", "render", [Session(11, "Counter-Strike 2")]),
+        new("stream", "stream", "render", [Session(22, "Spotify"), Session(23, "Idle", "inactive")]),
+        new("media", "media", "render", [Session(24, "VLC")]),
+        new("aux", "aux", "render", [Session(25, "Discord"), Session(26, "System", system: true)]),
+        new("unrouted", "none", "render", [Session(11, "Counter-Strike 2"), Session(22, "Spotify")]),
+        new("capture", "chatCapture", "capture", [Session(27, "Mic")])
+    });
+
+    Assert(unrouted.Count == 1, $"Expected exactly one unrouted app, got {unrouted.Count}.");
+    Assert(unrouted[0].DisplayName == "Spotify", "Unrouted app name mismatch.");
+    Assert(unrouted[0].ProcessId == 22, "Unrouted app process id mismatch.");
+    Assert(unrouted[0].SessionCount == 2, "Unrouted app session count should merge duplicates.");
+    return Task.CompletedTask;
 }
 
 file sealed class StubDiscovery(SonarEndpoint? endpoint) : ISonarDiscovery

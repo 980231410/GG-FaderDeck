@@ -25,7 +25,8 @@ public partial class MainWindow : Window
         ["chatRender"] = "聊天",
         ["chatCapture"] = "麦克风",
         ["media"] = "媒体",
-        ["aux"] = "辅助"
+        ["aux"] = "辅助",
+        ["unrouted"] = "未路由"
     };
 
     private readonly SonarStateService _stateService = new(new CompositeSonarDiscovery([
@@ -262,6 +263,7 @@ public partial class MainWindow : Window
                             CreateRoleBrush(device.Role));
                     })
                     .ToArray();
+                ApplyUnroutedApplications(snapshot.DeviceSessions);
             }
             StatusText.Text = snapshot.Mode == StreamMode
                 ? $"Sonar 已连接 · 主播模式 · {snapshot.Devices.Count(device => device.State == "active")} 个活动设备"
@@ -2286,8 +2288,41 @@ public partial class MainWindow : Window
         _dropTargetLane = null;
     }
 
-    private async void RoutingLane_Drop(object sender, System.Windows.DragEventArgs e)
+    private void ApplyUnroutedApplications(IReadOnlyList<DeviceSessions> sessions)
     {
+        var unrouted = RoutingComposer.CollectUnrouted(sessions)
+            .Select(application => new RoutedApplication(
+                application.DisplayName,
+                application.ProcessId,
+                application.SessionCount,
+                "unrouted"))
+            .ToArray();
+
+        UnroutedAppList.ItemsSource = unrouted;
+        UnroutedCountText.Text = $"{unrouted.Length} 个";
+        UnroutedEmptyText.Visibility = unrouted.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, MainTabs) || _isLoading)
+        {
+            return;
+        }
+
+        // Routing data is the expensive part of a refresh, so it is skipped by the polling
+        // timer; pull it again whenever the user actually looks at the routing page.
+        if (MainTabs.SelectedIndex == 1 && _sonarClient is not null)
+        {
+            LoadSonarStateAsync(showConnecting: false, includeRoutingData: true);
+        }
+    }
+
+    private void CaptionMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void CaptionClose_Click(object sender, RoutedEventArgs e) => Close();
+
+    private async void RoutingLane_Drop(object sender, System.Windows.DragEventArgs e)    {
         if (sender is not Border { DataContext: RoutingLane lane } border ||
             e.Data.GetData(typeof(RoutedApplication)) is not RoutedApplication application ||
             application.SourceRole == lane.Role || _sonarClient is null)

@@ -81,3 +81,39 @@ public sealed record StreamerSnapshot(
     bool IsMonitoringLocked,
     string AudioPath,
     IReadOnlyList<DeviceOutFeature> DeviceOut);
+
+public sealed record UnroutedApplication(int ProcessId, string DisplayName, int SessionCount);
+
+public static class RoutingComposer
+{
+    public static readonly string[] RoutedRoles = ["game", "chatRender", "media", "aux"];
+
+    /// <summary>
+    /// Applications that are playing into a render endpoint but are not assigned to one of
+    /// the four Sonar mixer channels (including apps parked on the stream endpoint).
+    /// </summary>
+    public static IReadOnlyList<UnroutedApplication> CollectUnrouted(IReadOnlyList<DeviceSessions> sessions)
+    {
+        var routedProcessIds = new HashSet<int>(
+            sessions
+                .Where(route => route.DataFlow == "render" && RoutedRoles.Contains(route.Role))
+                .SelectMany(route => route.Sessions)
+                .Where(IsVisible)
+                .Select(session => session.ProcessId));
+
+        return sessions
+            .Where(route => route.DataFlow == "render" && !RoutedRoles.Contains(route.Role))
+            .SelectMany(route => route.Sessions)
+            .Where(session => IsVisible(session) && !routedProcessIds.Contains(session.ProcessId))
+            .GroupBy(session => session.ProcessId)
+            .Select(group => new UnroutedApplication(
+                group.Key,
+                group.First().DisplayName,
+                group.Count()))
+            .OrderBy(application => application.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool IsVisible(AudioSession session) =>
+        session.State == "active" && !session.IsSystemSound && session.ProcessId > 0;
+}

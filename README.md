@@ -65,8 +65,8 @@ Windows 托盘混音面板，为 SteelSeries GG / Sonar 提供更快的通道音
 
 | 文件 | 体积 | 常驻内存（实测） | 说明 |
 | --- | --- | --- | --- |
-| `FaderDeck-1.0.3-win-x64.exe` | 约 0.86 MB | 约 131 MB 工作集 / 64 MB 私有 | 单文件，需本机已装 .NET 8 Desktop Runtime（推荐） |
-| `FaderDeck-1.0.3-win-x64-standalone.exe` | 约 63 MB | 约 245 MB 工作集 / 130 MB 私有 | 单文件自包含，不需要运行时 |
+| `FaderDeck-1.0.4-win-x64.exe` | 约 0.86 MB | 约 131 MB 工作集 / 64 MB 私有 | 单文件，需本机已装 .NET 8 Desktop Runtime（推荐） |
+| `FaderDeck-1.0.4-win-x64-standalone.exe` | 约 63 MB | 约 245 MB 工作集 / 130 MB 私有 | 单文件自包含，不需要运行时 |
 
 自包含版内存更高，是因为整套 .NET + WPF 程序集被打进同一个 bundle，运行时必须常驻内存；thin 版由已安装的运行时按需加载。两者功能一致。
 
@@ -74,7 +74,7 @@ standalone 版首次运行会把 WPF 原生库解压到 `%TEMP%\.net\<应用名>
 
 ```text
 set DOTNET_BUNDLE_EXTRACT_BASE_DIR=D:\some-writable-dir
-FaderDeck-1.0.3-win-x64-standalone.exe
+FaderDeck-1.0.4-win-x64-standalone.exe
 ```
 
 ## 从源码构建
