@@ -69,6 +69,7 @@ public partial class MainWindow : Window
     private string _micDeviceId = string.Empty;
     private string _streamingDeviceId = string.Empty;
     private string _deviceVolumeEditing = string.Empty;
+    private DispatcherTimer? _deviceVolumeEditingResetTimer;
     private bool _isApplyingDeviceVolume;
     private readonly System.Collections.ObjectModel.ObservableCollection<DeviceOutRow> _deviceOutRows = [];
     private string _deviceOutEditing = string.Empty;
@@ -1432,6 +1433,55 @@ public partial class MainWindow : Window
         _ => feature,
     };
 
+    /// <summary>托盘悬停浮窗读取：个人合成器的设备名 + 该端点的音量百分比。</summary>
+    internal (string Name, int Percent) GetPersonalOutputState()
+    {
+        var name = (MonitoringDeviceCombo.SelectedItem as DeviceOption)?.Name;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "个人合成器";
+        }
+
+        return (name!, Math.Clamp((int)Math.Round(MonitoringVolumeSlider.Value), 0, 100));
+    }
+
+    /// <summary>托盘滚轮调整个人合成器音量，走和面板音量条同一条写入路径。</summary>
+    internal int NudgePersonalOutput(int deltaPercent)
+    {
+        var target = Math.Clamp((int)Math.Round(MonitoringVolumeSlider.Value) + deltaPercent, 0, 100);
+        _deviceVolumeEditing = MonitoringMix;
+        _isApplyingDeviceVolume = true;
+        try
+        {
+            MonitoringVolumeSlider.Value = target;
+        }
+        finally
+        {
+            _isApplyingDeviceVolume = false;
+        }
+
+        DeviceVolumePercentFor(MonitoringMix).Text = $"{target}%";
+        WriteDeviceVolume(MonitoringMix, target);
+        _deviceVolumeEditingResetTimer ??= BuildDeviceVolumeEditingResetTimer();
+        _deviceVolumeEditingResetTimer.Stop();
+        _deviceVolumeEditingResetTimer.Start();
+        return target;
+    }
+
+    private DispatcherTimer BuildDeviceVolumeEditingResetTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (string.Equals(_deviceVolumeEditing, MonitoringMix, StringComparison.Ordinal))
+            {
+                _deviceVolumeEditing = string.Empty;
+            }
+        };
+        return timer;
+    }
+
     private void ApplyStreamerVolumes(StreamerSnapshot? streamer)
     {
         if (streamer is null)
@@ -2318,7 +2368,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CaptionMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void CaptionPin_Click(object sender, RoutedEventArgs e)
+    {
+        Topmost = !Topmost;
+        CaptionPinIcon.Fill = Topmost
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8F, 0x9B, 0xFF))
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8B, 0x96, 0xA8));
+        CaptionPinButton.ToolTip = Topmost ? "取消置顶" : "置顶显示";
+    }
 
     private void CaptionClose_Click(object sender, RoutedEventArgs e) => Close();
 

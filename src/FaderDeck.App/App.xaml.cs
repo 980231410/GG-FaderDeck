@@ -11,6 +11,10 @@ public partial class App : System.Windows.Application
     private Icon? _applicationIcon;
     private MainWindow? _mainWindow;
     private Mutex? _singleInstanceMutex;
+    private TrayVolumeFlyout? _flyout;
+    private TrayWheelWatcher? _wheelWatcher;
+    private DispatcherTimer? _hoverTimer;
+    private DateTime _hoverUntil = DateTime.MinValue;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,7 +37,7 @@ public partial class App : System.Windows.Application
         MainWindow = _mainWindow;
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("打开控制面板", null, (_, _) => ShowPanel());
+        menu.Items.Add("打开 SteelSeries GG", null, (_, _) => OpenSteelSeriesGg());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitApplication());
 
@@ -52,6 +56,23 @@ public partial class App : System.Windows.Application
                 TogglePanel();
             }
         };
+
+        _flyout = new TrayVolumeFlyout();
+        _trayIcon.MouseMove += (_, _) => OnTrayHover();
+
+        _wheelWatcher = new TrayWheelWatcher(
+            () => DateTime.UtcNow < _hoverUntil,
+            delta => Dispatcher.BeginInvoke(() => OnTrayWheel(delta)));
+
+        _hoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _hoverTimer.Tick += (_, _) =>
+        {
+            if (DateTime.UtcNow >= _hoverUntil)
+            {
+                HideFlyout();
+            }
+        };
+        _hoverTimer.Start();
 
         // Start discovery while the program is quietly resident in the tray, so opening the
         // panel later usually reuses an already warm Sonar connection and EQ cache.
@@ -78,11 +99,85 @@ public partial class App : System.Windows.Application
             _trayIcon.Dispose();
         }
 
+        _wheelWatcher?.Dispose();
+        _hoverTimer?.Stop();
+
+        if (_flyout is not null)
+        {
+            _flyout.AllowClose();
+            _flyout.Close();
+        }
+
         _applicationIcon?.Dispose();
 
         _singleInstanceMutex?.Dispose();
 
         base.OnExit(e);
+    }
+
+    private void OnTrayHover()
+    {
+        if (_mainWindow is null || _flyout is null)
+        {
+            return;
+        }
+
+        _hoverUntil = DateTime.UtcNow.AddMilliseconds(1200);
+        var (name, percent) = _mainWindow.GetPersonalOutputState();
+        _flyout.Update(name, percent);
+        _flyout.ShowNearCursor();
+    }
+
+    private void OnTrayWheel(int wheelDelta)
+    {
+        if (_mainWindow is null || _flyout is null || DateTime.UtcNow >= _hoverUntil)
+        {
+            return;
+        }
+
+        var step = wheelDelta > 0 ? 2 : -2;
+        var percent = _mainWindow.NudgePersonalOutput(step);
+        var (name, _) = _mainWindow.GetPersonalOutputState();
+        _flyout.Update(name, percent);
+        _hoverUntil = DateTime.UtcNow.AddMilliseconds(1200);
+        _flyout.ShowNearCursor();
+    }
+
+    private void HideFlyout()
+    {
+        _hoverUntil = DateTime.MinValue;
+        _flyout?.Hide();
+    }
+
+    private static void OpenSteelSeriesGg()
+    {
+        var candidates = new[]
+        {
+            @"C:\Program Files\SteelSeries\GG\SteelSeriesGG.exe",
+            @"C:\Program Files (x86)\SteelSeries\GG\SteelSeriesGG.exe",
+        };
+
+        foreach (var path in candidates)
+        {
+            if (!System.IO.File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path)
+                {
+                    UseShellExecute = true,
+                    WorkingDirectory = System.IO.Path.GetDirectoryName(path)!,
+                });
+                return;
+            }
+            catch
+            {
+                // 打不开就静默放弃，菜单项不应该把程序带崩。
+            }
+        }
     }
 
     private void TogglePanel()
