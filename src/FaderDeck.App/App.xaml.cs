@@ -43,15 +43,17 @@ public partial class App : System.Windows.Application
             ShowImageMargin = false,
             DropShadowEnabled = false,
             Font = new Font("Microsoft YaHei UI", 9F),
-            Padding = new Forms.Padding(4, 4, 4, 4),
+            Padding = new Forms.Padding(TrayMenuRenderer.MenuInset, TrayMenuRenderer.MenuInset, TrayMenuRenderer.MenuInset, TrayMenuRenderer.MenuInset),
             MinimumSize = new System.Drawing.Size(0, 0),
         };
+        menu.Opened += (_, _) => TrayMenuRenderer.ApplyRoundedRegion(menu);
+        menu.SizeChanged += (_, _) => TrayMenuRenderer.ApplyRoundedRegion(menu);
         menu.Items.Add("打开 SteelSeries GG", null, (_, _) => OpenSteelSeriesGg());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitApplication());
         foreach (Forms.ToolStripItem item in menu.Items)
         {
-            item.Padding = new Forms.Padding(8, 5, 10, 5);
+            item.Padding = new Forms.Padding(10, 7, 10, 7);
         }
 
         _applicationIcon = TrayIconFactory.Create();
